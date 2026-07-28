@@ -11,6 +11,7 @@ if (fs.existsSync(envPath)) {
   });
 }
 const ADMIN_PASSWORD = env.ADMIN_PASSWORD || 'UOPPASSWORD2';
+const CO_ADMIN_PASSWORD = env.CO_ADMIN_PASSWORD || 'UOP_PASSWORD';
 const PORT = env.PORT || 3000;
 
 function serveFile(res, filePath, contentType) {
@@ -27,9 +28,11 @@ function serveFile(res, filePath, contentType) {
 
 const questionsFile = path.join(__dirname, 'data', 'questions.json');
 const membersFile = path.join(__dirname, 'data', 'members.json');
+const blogsFile = path.join(__dirname, 'data', 'blogs.json');
+const configFile = path.join(__dirname, 'data', 'config.json');
 
-function readJSON(file) {
-  if (!fs.existsSync(file)) return [];
+function readJSON(file, defaultVal = []) {
+  if (!fs.existsSync(file)) return defaultVal;
   return JSON.parse(fs.readFileSync(file, 'utf-8') || '[]');
 }
 
@@ -55,25 +58,41 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(readJSON(membersFile)));
   }
 
+  if (url === '/api/blogs' && method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(readJSON(blogsFile)));
+  }
+
+  if (url === '/api/config' && method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(readJSON(configFile, { coAdminAllowed: false })));
+  }
+
   if (url === '/api/admin/action' && method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk.toString(); });
     req.on('end', () => {
       const data = JSON.parse(body || '{}');
-      
-      // Strict password checking node
-      if (data.password !== ADMIN_PASSWORD) {
+      const cfg = readJSON(configFile, { coAdminAllowed: false });
+
+      const isMaster = data.password === ADMIN_PASSWORD;
+      const isCoAdmin = data.password === CO_ADMIN_PASSWORD && cfg.coAdminAllowed === true;
+
+      if (!isMaster && !isCoAdmin) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ success: false, error: 'Unauthorized' }));
       }
 
-      // Handle simple password checking requests
       if (data.action === 'verify') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: true }));
+        return res.end(JSON.stringify({ success: true, isMaster: isMaster }));
       }
 
-      if (data.action === 'add-question') {
+      if (data.action === 'toggle-coadmin' && isMaster) {
+        cfg.coAdminAllowed = data.enabled;
+        writeJSON(configFile, cfg);
+      }
+      else if (data.action === 'add-question') {
         const list = readJSON(questionsFile);
         list.push({
           id: Date.now(), title: data.title, question: data.question,
@@ -101,6 +120,27 @@ const server = http.createServer((req, res) => {
         list = list.filter(m => m.id !== Number(data.id));
         writeJSON(membersFile, list);
       }
+      else if (data.action === 'add-blog') {
+        const list = readJSON(blogsFile);
+        // Automated local refresh runtime calculations formatting zone
+        const rightNow = new Date();
+        const autoStamp = rightNow.toLocaleString('en-US', { timeZone: 'Africa/Nairobi' });
+        
+        list.push({
+          id: Date.now(),
+          topic: data.topic,
+          body: data.body,
+          author: data.author,
+          year: data.year,
+          timestamp: autoStamp
+        });
+        writeJSON(blogsFile, list);
+      }
+      else if (data.action === 'delete-blog') {
+        let list = readJSON(blogsFile);
+        list = list.filter(b => b.id !== Number(data.id));
+        writeJSON(blogsFile, list);
+      }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
@@ -120,5 +160,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running locally offline at http://localhost:${PORT}`);
+  console.log(`Server running with dual-password logic at http://localhost:${PORT}`);
 });

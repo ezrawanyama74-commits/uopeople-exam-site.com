@@ -12,6 +12,7 @@
       --text-muted: #94a3b8;
       --accent: #10b981;
       --danger: #ef4444;
+      --blue: #38bdf8;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
     body { background-color: var(--bg-main); color: var(--text-main); line-height: 1.6; padding-bottom: 60px; }
@@ -26,14 +27,17 @@
     .drawer-links a { color: var(--text-main); text-decoration: none; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
     .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
     .card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #334155; }
+    .topic-row-btn { background: #1e293b; color: white; border: 1px solid #475569; padding: 15px; width: 100%; text-align: left; font-size: 17px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+    .topic-row-btn:hover { border-color: var(--accent); background: #24334d; }
+    .topic-badge { font-size: 12px; background: rgba(16, 185, 129, 0.2); color: var(--accent); padding: 4px 8px; border-radius: 4px; }
     .btn { background-color: var(--accent); color: #000; border: none; padding: 12px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; display: inline-block; font-size: 16px; width: 100%; text-align: center; }
     .btn-secondary { background-color: #475569; color: white; margin-top: 10px; }
     .opt-label { display: block; background: #334155; padding: 12px; margin: 8px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
-    .opt-label:hover { border-color: var(--accent); }
+    .opt-label.selected { border-color: var(--accent); background: #24334d; }
     .timer { font-size: 20px; font-weight: bold; color: #f59e0b; text-align: center; margin-bottom: 15px; }
-    .feedback-box { padding: 15px; margin-top: 15px; border-radius: 8px; font-weight: bold; display: none; }
-    .feedback-correct { background-color: rgba(16, 185, 129, 0.2); border: 1px solid var(--accent); color: #34d399; }
-    .feedback-wrong { background-color: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #f87171; }
+    .review-item { padding: 15px; margin-top: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; }
+    .review-correct { border-left: 4px solid var(--accent); }
+    .review-wrong { border-left: 4px solid var(--danger); }
     .footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 40px; padding: 10px; }
   </style>
 </head>
@@ -46,49 +50,72 @@
     <button class="nav-btn" onclick="toggleDrawer(true)">☰</button>
   </header>
 
+  <!-- Sliding Hamburger Menu Drawer -->
   <div class="drawer" id="sideDrawer">
     <button class="drawer-close" onclick="toggleDrawer(false)">×</button>
     <div class="drawer-links">
-      <a href="#" onclick="showScreen('setup-screen')">Home/Exam</a>
+      <a href="#" onclick="showScreen('setup-screen')">Home / Choose Topic</a>
       <a href="#" onclick="showScreen('members-screen')">Members Directory</a>
+      <a href="#" onclick="showScreen('blogs-screen')">The Blogs/Perspectives</a>
       <a href="#" onclick="showScreen('faq-screen')">FAQ / Rules</a>
     </div>
   </div>
 
   <div class="container">
-    <!-- SETUP SCREEN -->
+    <!-- OVERHAULED HOMEPAGE SETUP SCREEN -->
     <div id="setup-screen" class="screen">
       <div class="card">
-        <h2 style="margin-bottom:15px;">Welcome to the Exam Dashboard</h2>
-        <p style="color:var(--text-muted); margin-bottom:20px;">Select your preferred test execution format below:</p>
+        <h2 style="margin-bottom:10px;">Select Your Exam Unit</h2>
+        <p style="color:var(--text-muted); margin-bottom:20px;">All available topics are listed below. Tap a row to begin your test session.</p>
         
-        <label style="display:block; margin-bottom:8px;">Choose Topic:</label>
-        <select id="topicSelect" style="width:100%; padding:10px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px; margin-bottom:20px;">
-          <option value="mixed">Mixed Mode (Shifts positions to avoid guessing)</option>
-        </select>
+        <!-- Standard Shuffling Mode Row Button -->
+        <button class="topic-row-btn" onclick="startExam('mixed')">
+          <span>🔄 Mixed Shuffling Mode</span>
+          <span class="topic-badge" style="background:rgba(56,189,248,0.2); color:var(--blue);">Random Order</span>
+        </button>
         
-        <button class="btn" onclick="startExam()">Launch Exam Session</button>
+        <!-- Target container for topics listed out row by row -->
+        <div id="topicsContainer">Loading units...</div>
       </div>
     </div>
 
-    <!-- QUIZ EXECUTION ENGINE -->
+    <!-- QUIZ INTERFACE (1-MINUTE COUNTDOWN) -->
     <div id="quiz-screen" class="screen" style="display:none;">
-      <div class="timer" id="timerBox">Time Remaining: 30s</div>
+      <div class="timer" id="timerBox">Time Remaining: 60s</div>
       <div class="card">
-        <span id="qInstructions" style="color:var(--text-muted); font-size:14px; text-transform:uppercase; font-weight:bold;"></span>
+        <span id="qInstructions" style="color:var(--text-muted); font-size:13px; text-transform:uppercase; font-weight:bold;"></span>
         <h2 id="qTitle" style="margin:5px 0 15px 0; font-size:20px;"></h2>
         <p id="qText" style="margin-bottom:20px; font-size:17px;"></p>
         
         <div id="optionsContainer"></div>
-        <div id="instantFeedback" class="feedback-box"></div>
-        
-        <button id="actionBtn" class="btn" style="margin-top:20px;" onclick="processAnswer()">Lock Answer</button>
+        <button id="actionBtn" class="btn" style="margin-top:20px;" onclick="advanceQuizQuestion()">Next Question</button>
       </div>
     </div>
+
+    <!-- CUMULATIVE SCORE SUMMARY SCREEN -->
+    <div id="results-screen" class="screen" style="display:none;">
+      <div class="card" style="text-align:center;">
+        <h2 style="color:var(--accent); font-size:28px;">Exam Completed</h2>
+        <div id="scorePercentage" style="font-size:48px; font-weight:bold; margin:15px 0;">0%</div>
+        <p id="scoreSummaryText" style="color:var(--text-muted); margin-bottom:10px;"></p>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:5px;">Detailed Corrections Sheet</h3>
+        <div id="correctionsContainer"></div>
+        <button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return Button ☰</button>
+      </div>
+    </div>
+    <!-- BLOGS/PERSPECTIVES DISPLAY CONTAINER -->
+    <div id="blogs-screen" class="screen" style="display:none;">
+      <h2 style="margin-bottom:15px;">The Blogs / Perspectives Feed</h2>
+      <div id="blogsContainer">Loading articles...</div>
+      <button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return to Home</button>
+    </div>
+
     <!-- MEMBERS SCREEN -->
     <div id="members-screen" class="screen" style="display:none;">
       <h2 style="margin-bottom:15px;">Group Members Directory</h2>
-      <div id="membersContainer"></div>
+      <div id="membersContainer">Loading profiles...</div>
       <button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return to Home</button>
     </div>
 
@@ -98,12 +125,12 @@
         <h2>Frequently Asked Questions</h2>
         <div style="margin-top:15px; display:flex; flex-direction:column; gap:15px;">
           <div>
-            <h4 style="color:var(--accent);">How does the Mixed Mode configuration operate?</h4>
-            <p style="color:var(--text-muted); font-size:14px;">It randomizes both query presentation indices and their sub-options natively to block structural test guessing.</p>
+            <h4 style="color:var(--accent);">How does the exam grading logic run?</h4>
+            <p style="color:var(--text-muted); font-size:14px;">Instant alerts are completely gone. You must answer all topics sequentially first to view your final correction summary sheet and grading percentage profile.</p>
           </div>
           <div>
-            <h4 style="color:var(--accent);">What is the testing absolute duration limit?</h4>
-            <p style="color:var(--text-muted); font-size:14px;">Every single unique card provides exactly 30 seconds to lock in choices before immediate closure flags.</p>
+            <h4 style="color:var(--accent);">What is the active question clock limit?</h4>
+            <p style="color:var(--text-muted); font-size:14px;">Every single question card grants exactly 1 full minute (60 seconds) to choose selections before auto-locking.</p>
           </div>
         </div>
       </div>
@@ -123,10 +150,9 @@
     let globalQuestions = [];
     let currentQuizSet = [];
     let currentIndex = 0;
+    let userSelectionsLog = {}; // Stores all student choices globally until click submit
     let countdownInterval = null;
-    let currentSecondsRemaining = 30;
-    let selectedOptionThisTurn = null;
-    let isFeedbackState = false;
+    let currentSecondsRemaining = 60; // 1 Minute limit tracking initialization
 
     function toggleDrawer(open) {
       document.getElementById('sideDrawer').classList.toggle('open', open);
@@ -136,7 +162,10 @@
       document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
       document.getElementById(screenId).style.display = 'block';
       toggleDrawer(false);
-      if(screenId === 'setup-screen') clearInterval(countdownInterval);
+      if(screenId === 'setup-screen') {
+        clearInterval(countdownInterval);
+        loadInitialData();
+      }
     }
 
     async function loadInitialData() {
@@ -147,17 +176,23 @@
         const mRes = await fetch('/api/members');
         const members = await mRes.json();
 
-        const topicSelect = document.getElementById('topicSelect');
+        const bRes = await fetch('/api/blogs');
+        const blogs = await bRes.json();
+
+        // Render Topics out row by row cleanly on the welcome container
+        const topicsBox = document.getElementById('topicsContainer');
+        topicsBox.innerHTML = '';
         const uniqueTitles = [...new Set(globalQuestions.map(q => q.title))];
         uniqueTitles.forEach(t => {
-          if (![...topicSelect.options].some(o => o.value === t)) {
-            const opt = document.createElement('option');
-            opt.value = t;
-            opt.textContent = t;
-            topicSelect.appendChild(opt);
-          }
+          const count = globalQuestions.filter(q => q.title === t).length;
+          topicsBox.innerHTML += `
+            <button class="topic-row-btn" onclick="startExam('${t}')">
+              <span>📖 ${t}</span>
+              <span class="topic-badge">${count} Questions</span>
+            </button>`;
         });
 
+        // Map operational members UI elements grid cards
         const mContainer = document.getElementById('membersContainer');
         mContainer.innerHTML = '';
         members.forEach(m => {
@@ -168,7 +203,19 @@
               <p style="color:var(--text-muted); font-size:14px; margin-top:5px;">"${m.story}"</p>
             </div>`;
         });
-      } catch (err) { console.error("Error loading application parameters offline:", err); }
+
+        // Map perspective blogs elements list
+        const bContainer = document.getElementById('blogsContainer');
+        bContainer.innerHTML = blogs.length === 0 ? '<p style="color:var(--text-muted)">No blogs published yet.</p>' : '';
+        blogs.forEach(b => {
+          bContainer.innerHTML += `
+            <div class="card">
+              <h3 style="color:var(--blue);">${b.topic}</h3>
+              <small style="color:var(--text-muted); display:block; margin:4px 0 12px 0;">By ${b.author} (${b.year}) — 🕒 ${b.timestamp}</small>
+              <p style="font-size:15px; white-space:pre-wrap;">${b.body}</p>
+            </div>`;
+        });
+      } catch (err) { console.error("Error connecting with internal data pipes:", err); }
     }
 
     function shuffleArray(array) {
@@ -179,31 +226,22 @@
       return array;
     }
 
-    function startExam() {
-      const criteria = document.getElementById('topicSelect').value;
-      if (criteria === 'mixed') {
+    function startExam(topic) {
+      userSelectionsLog = {};
+      if (topic === 'mixed') {
         currentQuizSet = shuffleArray(JSON.parse(JSON.stringify(globalQuestions)));
       } else {
-        currentQuizSet = JSON.parse(JSON.stringify(globalQuestions.filter(q => q.title === criteria)));
+        currentQuizSet = JSON.parse(JSON.stringify(globalQuestions.filter(q => q.title === topic)));
       }
       currentIndex = 0;
-      if (currentQuizSet.length === 0) return alert('No loaded criteria fields matching queries database assets.');
+      if (currentQuizSet.length === 0) return alert('No database parameters loaded matching this section entry.');
       showScreen('quiz-screen');
       renderQuestion();
     }
 
     function renderQuestion() {
-      isFeedbackState = false;
-      selectedOptionThisTurn = null;
-      document.getElementById('instantFeedback').style.display = 'none';
-      
-      // CRITICAL FIX: Explicitly enforce button visibility every single time a question handles loading loop entries
-      const actionBtn = document.getElementById('actionBtn');
-      actionBtn.style.display = 'block';
-      actionBtn.textContent = "Lock Answer";
-      
       const q = currentQuizSet[currentIndex];
-      document.getElementById('qInstructions').textContent = `${q.instructions} (Max Selections Allowed: ${q.limit})`;
+      document.getElementById('qInstructions').textContent = `${q.instructions} (Selections Limit: ${q.limit})`;
       document.getElementById('qTitle').textContent = q.title;
       document.getElementById('qText').textContent = q.question;
 
@@ -211,7 +249,8 @@
         { key: 'A', value: q.a }, { key: 'B', value: q.b },
         { key: 'C', value: q.c }, { key: 'D', value: q.d }
       ];
-      if (document.getElementById('topicSelect').value === 'mixed') {
+      // Shuffle choices dynamically if playing in Mixed Shuffling Mode context
+      if (globalQuestions.length > 0 && currentQuizSet[0].title !== q.title) {
         sourceOptions = shuffleArray(sourceOptions);
       }
 
@@ -219,18 +258,25 @@
       optsBox.innerHTML = '';
       sourceOptions.forEach(o => {
         optsBox.innerHTML += `
-          <label class="opt-label">
-            <input type="radio" name="quizChoice" value="${o.key}" onclick="selectedOptionThisTurn='${o.key}'">
+          <label class="opt-label" id="lbl-${o.key}">
+            <input type="radio" name="quizChoice" value="${o.key}" style="margin-right:10px;" onclick="logSelection('${o.key}')">
             <strong>${o.key}:</strong> ${o.value}
           </label>`;
       });
 
+      document.getElementById('actionBtn').textContent = (currentIndex === currentQuizSet.length - 1) ? "Submit Exam Session" : "Next Question";
       startTimer();
+    }
+
+    function logSelection(key) {
+      document.querySelectorAll('.opt-label').forEach(l => l.classList.remove('selected'));
+      document.getElementById(`lbl-${key}`).classList.add('selected');
+      userSelectionsLog[currentQuizSet[currentIndex].id] = key;
     }
 
     function startTimer() {
       clearInterval(countdownInterval);
-      currentSecondsRemaining = 30;
+      currentSecondsRemaining = 60; // Upgraded 1-minute full limit counter
       document.getElementById('timerBox').textContent = `Time Remaining: ${currentSecondsRemaining}s`;
       
       countdownInterval = setInterval(() => {
@@ -238,47 +284,51 @@
         document.getElementById('timerBox').textContent = `Time Remaining: ${currentSecondsRemaining}s`;
         if (currentSecondsRemaining <= 0) {
           clearInterval(countdownInterval);
-          forceTimeout();
+          advanceQuizQuestion();
         }
       }, 1000);
     }
 
-    function forceTimeout() {
-      selectedOptionThisTurn = "None Passed";
-      processAnswer();
+    function advanceQuizQuestion() {
+      clearInterval(countdownInterval);
+      
+      // Auto register choice if time ran out without student confirmation inputs
+      if (!userSelectionsLog[currentQuizSet[currentIndex].id]) {
+        userSelectionsLog[currentQuizSet[currentIndex].id] = "Unanswered / Timeout";
+      }
+
+      if (currentIndex < currentQuizSet.length - 1) {
+        currentIndex++;
+        renderQuestion();
+      } else {
+        compileFinalScoreboard();
+      }
     }
 
-    function processAnswer() {
+    function compileFinalScoreboard() {
       clearInterval(countdownInterval);
-      const q = currentQuizSet[currentIndex];
-      const feedbackDiv = document.getElementById('instantFeedback');
+      let correctCounter = 0;
+      const cBox = document.getElementById('correctionsContainer');
+      cBox.innerHTML = '';
+
+      currentQuizSet.forEach((q, idx) => {
+        const selected = userSelectionsLog[q.id];
+        const isCorrect = selected === q.correct;
+        if(isCorrect) correctCounter++;
+
+        cBox.innerHTML += `
+          <div class="review-item ${isCorrect ? 'review-correct' : 'review-wrong'}">
+            <h4>Q${idx+1}: [${q.title}] ${q.question}</h4>
+            <p style="font-size:14px; margin-top:5px;">Your Answer: <strong style="color:${isCorrect ? 'var(--accent)' : 'var(--danger)'};">${selected}</strong></p>
+            ${!isCorrect ? `<p style="font-size:14px; color:var(--accent);">Correct Answer: <strong>${q.correct}</strong></p>` : ''}
+          </div>`;
+      });
+
+      const totalPercentage = Math.round((correctCounter / currentQuizSet.length) * 100);
+      document.getElementById('scorePercentage').textContent = `${totalPercentage}%`;
+      document.getElementById('scoreSummaryText').textContent = `You correctly answered ${correctCounter} out of ${currentQuizSet.length} total test questions.`;
       
-      if (!isFeedbackState) {
-        if (!selectedOptionThisTurn) return alert("Please make a choice selection before proceeding.");
-        
-        isFeedbackState = true;
-        feedbackDiv.style.display = 'block';
-        
-        if (selectedOptionThisTurn === q.correct) {
-          feedbackDiv.className = "feedback-box feedback-correct";
-          feedbackDiv.textContent = `Congratulations! You chose answer ${selectedOptionThisTurn} and it was correct!`;
-        } else {
-          feedbackDiv.className = "feedback-box feedback-wrong";
-          feedbackDiv.textContent = `You chose answer ${selectedOptionThisTurn} and it was wrong. The correct answer was ${q.correct}.`;
-        }
-        
-        document.getElementById('actionBtn').textContent = (currentIndex < currentQuizSet.length - 1) ? "Next Question" : "Complete & Show Return Controls";
-      } else {
-        currentIndex++;
-        if (currentIndex < currentQuizSet.length) {
-          renderQuestion();
-        } else {
-          feedbackDiv.className = "feedback-box feedback-correct";
-          feedbackDiv.innerHTML = `<h3>Exam Session Terminated.</h3><p style="margin:10px 0; font-size:14px; color:white;">You have handled all questions in this testing tracking tier loop context parameters.</p><button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return Button</button>`;
-          document.getElementById('optionsContainer').innerHTML = '';
-          document.getElementById('actionBtn').style.display = 'none';
-        }
-      }
+      showScreen('results-screen');
     }
 
     window.onload = loadInitialData;
