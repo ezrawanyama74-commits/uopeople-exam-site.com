@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UoPeople CS Study Group Exam</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #10b981;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background-color: var(--bg-main); color: var(--text-main); line-height: 1.6; padding-bottom: 60px; }
+    header { background-color: var(--bg-card); padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; position: relative; }
+    .logo-area { display: flex; align-items: center; gap: 10px; }
+    .logo-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+    .nav-btn { background: none; border: none; color: var(--text-main); font-size: 28px; cursor: pointer; }
+    .drawer { position: fixed; top: 0; right: -280px; width: 280px; height: 100%; background: var(--bg-card); z-index: 100; transition: 0.3s; padding: 20px; box-shadow: -5px 0 15px rgba(0,0,0,0.5); }
+    .drawer.open { right: 0; }
+    .drawer-close { font-size: 24px; background: none; border: none; color: var(--text-main); cursor: pointer; float: right; }
+    .drawer-links { margin-top: 50px; display: flex; flex-direction: column; gap: 20px; }
+    .drawer-links a { color: var(--text-main); text-decoration: none; font-size: 18px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+    .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+    .card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #334155; }
+    .btn { background-color: var(--accent); color: #000; border: none; padding: 12px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; display: inline-block; font-size: 16px; width: 100%; text-align: center; }
+    .btn-secondary { background-color: #475569; color: white; margin-top: 10px; }
+    .opt-label { display: block; background: #334155; padding: 12px; margin: 8px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
+    .opt-label:hover { border-color: var(--accent); }
+    .timer { font-size: 20px; font-weight: bold; color: #f59e0b; text-align: center; margin-bottom: 15px; }
+    .feedback-box { padding: 15px; margin-top: 15px; border-radius: 8px; font-weight: bold; display: none; }
+    .feedback-correct { background-color: rgba(16, 185, 129, 0.2); border: 1px solid var(--accent); color: #34d399; }
+    .feedback-wrong { background-color: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #f87171; }
+    .footer { text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 40px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-area">
+      <img class="logo-img" src="/public/logo.png" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://w3.org\' width=\'40\' height=\'40\'><rect width=\'40\' height=\'40\' fill=\'%2310b981\'/><text x=\'10\' y=\'25\' fill=\'white\'>CS</text></svg>'" alt="Logo">
+      <h3>UoPeople CS Group</h3>
+    </div>
+    <button class="nav-btn" onclick="toggleDrawer(true)">☰</button>
+  </header>
+
+  <div class="drawer" id="sideDrawer">
+    <button class="drawer-close" onclick="toggleDrawer(false)">×</button>
+    <div class="drawer-links">
+      <a href="#" onclick="showScreen('setup-screen')">Home/Exam</a>
+      <a href="#" onclick="showScreen('members-screen')">Members Directory</a>
+      <a href="#" onclick="showScreen('faq-screen')">FAQ / Rules</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen" class="screen">
+      <div class="card">
+        <h2 style="margin-bottom:15px;">Welcome to the Exam Dashboard</h2>
+        <p style="color:var(--text-muted); margin-bottom:20px;">Select your preferred test execution format below:</p>
+        
+        <label style="display:block; margin-bottom:8px;">Choose Topic:</label>
+        <select id="topicSelect" style="width:100%; padding:10px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px; margin-bottom:20px;">
+          <option value="mixed">Mixed Mode (Shifts positions to avoid guessing)</option>
+        </select>
+        
+        <button class="btn" onclick="startExam()">Launch Exam Session</button>
+      </div>
+    </div>
+
+    <!-- QUIZ EXECUTION ENGINE -->
+    <div id="quiz-screen" class="screen" style="display:none;">
+      <div class="timer" id="timerBox">Time Remaining: 30s</div>
+      <div class="card">
+        <span id="qInstructions" style="color:var(--text-muted); font-size:14px; text-transform:uppercase; font-weight:bold;"></span>
+        <h2 id="qTitle" style="margin:5px 0 15px 0; font-size:20px;"></h2>
+        <p id="qText" style="margin-bottom:20px; font-size:17px;"></p>
+        
+        <div id="optionsContainer"></div>
+        <div id="instantFeedback" class="feedback-box"></div>
+        
+        <button id="actionBtn" class="btn" style="margin-top:20px;" onclick="processAnswer()">Lock Answer</button>
+      </div>
+    </div>
+    <!-- MEMBERS SCREEN -->
+    <div id="members-screen" class="screen" style="display:none;">
+      <h2 style="margin-bottom:15px;">Group Members Directory</h2>
+      <div id="membersContainer"></div>
+      <button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return to Home</button>
+    </div>
+
+    <!-- FAQ SCREEN -->
+    <div id="faq-screen" class="screen" style="display:none;">
+      <div class="card">
+        <h2>Frequently Asked Questions</h2>
+        <div style="margin-top:15px; display:flex; flex-direction:column; gap:15px;">
+          <div>
+            <h4 style="color:var(--accent);">How does the Mixed Mode configuration operate?</h4>
+            <p style="color:var(--text-muted); font-size:14px;">It randomizes both query presentation indices and their sub-options natively to block structural test guessing.</p>
+          </div>
+          <div>
+            <h4 style="color:var(--accent);">What is the testing absolute duration limit?</h4>
+            <p style="color:var(--text-muted); font-size:14px;">Every single unique card provides exactly 30 seconds to lock in choices before immediate closure flags.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--accent);">
+        <h3>System Support Desk</h3>
+        <p style="margin-top:5px;">Direct issues to: <a href="mailto:ezrawanyama74@gmail.com" style="color:var(--accent);">ezrawanyama74@gmail.com</a></p>
+      </div>
+      <button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return to Home</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>© 2026 UoPeople Computer Science Study Group</p>
+    <p>Engineered by Founder <strong>Ezra Wanyama</strong> from Nakuru, Kenya</p>
+  </div>
+  <script>
+    let globalQuestions = [];
+    let currentQuizSet = [];
+    let currentIndex = 0;
+    let countdownInterval = null;
+    let currentSecondsRemaining = 30;
+    let selectedOptionThisTurn = null;
+    let isFeedbackState = false;
+
+    function toggleDrawer(open) {
+      document.getElementById('sideDrawer').classList.toggle('open', open);
+    }
+
+    function showScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+      document.getElementById(screenId).style.display = 'block';
+      toggleDrawer(false);
+      if(screenId === 'setup-screen') clearInterval(countdownInterval);
+    }
+
+    async function loadInitialData() {
+      try {
+        const qRes = await fetch('/api/questions');
+        globalQuestions = await qRes.json();
+        
+        const mRes = await fetch('/api/members');
+        const members = await mRes.json();
+
+        const topicSelect = document.getElementById('topicSelect');
+        const uniqueTitles = [...new Set(globalQuestions.map(q => q.title))];
+        uniqueTitles.forEach(t => {
+          if (![...topicSelect.options].some(o => o.value === t)) {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            topicSelect.appendChild(opt);
+          }
+        });
+
+        const mContainer = document.getElementById('membersContainer');
+        mContainer.innerHTML = '';
+        members.forEach(m => {
+          mContainer.innerHTML += `
+            <div class="card">
+              <h3>${m.name} <span style="font-size:12px; background:var(--accent); color:#000; padding:2px 6px; border-radius:4px; margin-left:5px;">${m.position}</span></h3>
+              <p style="font-size:14px; color:var(--accent); margin:4px 0;">Course Focus: ${m.course} (Year ${m.year})</p>
+              <p style="color:var(--text-muted); font-size:14px; margin-top:5px;">"${m.story}"</p>
+            </div>`;
+        });
+      } catch (err) { console.error("Error loading application parameters offline:", err); }
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function startExam() {
+      const criteria = document.getElementById('topicSelect').value;
+      if (criteria === 'mixed') {
+        currentQuizSet = shuffleArray(JSON.parse(JSON.stringify(globalQuestions)));
+      } else {
+        currentQuizSet = JSON.parse(JSON.stringify(globalQuestions.filter(q => q.title === criteria)));
+      }
+      currentIndex = 0;
+      if (currentQuizSet.length === 0) return alert('No loaded criteria fields matching queries database assets.');
+      showScreen('quiz-screen');
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      isFeedbackState = false;
+      selectedOptionThisTurn = null;
+      document.getElementById('instantFeedback').style.display = 'none';
+      
+      // CRITICAL FIX: Explicitly enforce button visibility every single time a question handles loading loop entries
+      const actionBtn = document.getElementById('actionBtn');
+      actionBtn.style.display = 'block';
+      actionBtn.textContent = "Lock Answer";
+      
+      const q = currentQuizSet[currentIndex];
+      document.getElementById('qInstructions').textContent = `${q.instructions} (Max Selections Allowed: ${q.limit})`;
+      document.getElementById('qTitle').textContent = q.title;
+      document.getElementById('qText').textContent = q.question;
+
+      let sourceOptions = [
+        { key: 'A', value: q.a }, { key: 'B', value: q.b },
+        { key: 'C', value: q.c }, { key: 'D', value: q.d }
+      ];
+      if (document.getElementById('topicSelect').value === 'mixed') {
+        sourceOptions = shuffleArray(sourceOptions);
+      }
+
+      const optsBox = document.getElementById('optionsContainer');
+      optsBox.innerHTML = '';
+      sourceOptions.forEach(o => {
+        optsBox.innerHTML += `
+          <label class="opt-label">
+            <input type="radio" name="quizChoice" value="${o.key}" onclick="selectedOptionThisTurn='${o.key}'">
+            <strong>${o.key}:</strong> ${o.value}
+          </label>`;
+      });
+
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(countdownInterval);
+      currentSecondsRemaining = 30;
+      document.getElementById('timerBox').textContent = `Time Remaining: ${currentSecondsRemaining}s`;
+      
+      countdownInterval = setInterval(() => {
+        currentSecondsRemaining--;
+        document.getElementById('timerBox').textContent = `Time Remaining: ${currentSecondsRemaining}s`;
+        if (currentSecondsRemaining <= 0) {
+          clearInterval(countdownInterval);
+          forceTimeout();
+        }
+      }, 1000);
+    }
+
+    function forceTimeout() {
+      selectedOptionThisTurn = "None Passed";
+      processAnswer();
+    }
+
+    function processAnswer() {
+      clearInterval(countdownInterval);
+      const q = currentQuizSet[currentIndex];
+      const feedbackDiv = document.getElementById('instantFeedback');
+      
+      if (!isFeedbackState) {
+        if (!selectedOptionThisTurn) return alert("Please make a choice selection before proceeding.");
+        
+        isFeedbackState = true;
+        feedbackDiv.style.display = 'block';
+        
+        if (selectedOptionThisTurn === q.correct) {
+          feedbackDiv.className = "feedback-box feedback-correct";
+          feedbackDiv.textContent = `Congratulations! You chose answer ${selectedOptionThisTurn} and it was correct!`;
+        } else {
+          feedbackDiv.className = "feedback-box feedback-wrong";
+          feedbackDiv.textContent = `You chose answer ${selectedOptionThisTurn} and it was wrong. The correct answer was ${q.correct}.`;
+        }
+        
+        document.getElementById('actionBtn').textContent = (currentIndex < currentQuizSet.length - 1) ? "Next Question" : "Complete & Show Return Controls";
+      } else {
+        currentIndex++;
+        if (currentIndex < currentQuizSet.length) {
+          renderQuestion();
+        } else {
+          feedbackDiv.className = "feedback-box feedback-correct";
+          feedbackDiv.innerHTML = `<h3>Exam Session Terminated.</h3><p style="margin:10px 0; font-size:14px; color:white;">You have handled all questions in this testing tracking tier loop context parameters.</p><button class="btn btn-secondary" onclick="showScreen('setup-screen')">Return Button</button>`;
+          document.getElementById('optionsContainer').innerHTML = '';
+          document.getElementById('actionBtn').style.display = 'none';
+        }
+      }
+    }
+
+    window.onload = loadInitialData;
+  </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Control Center</title>
+  <style>
+    :root { --bg-main: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8; --success: #10b981; --danger: #ef4444; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background-color: var(--bg-main); color: var(--text-main); padding: 20px 15px; }
+    .container { max-width: 700px; margin: 0 auto; }
+    .card { background-color: var(--bg-card); border-radius: 12px; padding: 25px; margin-bottom: 25px; border: 1px solid #334155; }
+    h2 { border-bottom: 2px solid #334155; padding-bottom: 10px; margin-bottom: 20px; font-size: 22px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-size: 14px; color: var(--text-muted); }
+    input[type="text"], input[type="password"], textarea, select { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; color: white; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .btn { background-color: var(--accent); color: #000; border: none; padding: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; }
+    .btn-danger { background-color: var(--danger); color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; margin-top: 10px; }
+    .btn-home { background-color: #475569; color: white; margin-top: 15px; display: inline-block; text-align: center; text-decoration: none; border-radius: 8px; padding: 12px; width: 100%; font-weight: bold; }
+    #adminContent { display: none; }
+    .list-item { background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- BLANK ACCESS PROMPT GATEWAY -->
+  <div id="authGate" class="card">
+    <h2>Secure Staff Gateway</h2>
+    <div class="form-group">
+      <label>Enter Authorized Master System Password:</label>
+      <input type="password" id="passField" placeholder="••••••••••••">
+    </div>
+    <button class="btn" style="background-color: var(--success);" onclick="unlockDashboard()">Authenticate Access</button>
+    <a href="/index.html" class="btn-home">Cancel and Return</a>
+  </div>
+
+  <div id="adminContent">
+    <!-- FORM: QUESTION CREATOR -->
+    <div class="card">
+      <h2>Add Assessment Item</h2>
+      <div class="form-group"><label>Category / Topic Title</label><input type="text" id="qTitle" placeholder="Introduction to CS"></div>
+      <div class="form-group"><label>Question Text Prompt</label><textarea id="qBody" rows="2"></textarea></div>
+      <div class="form-group"><label>Instructions</label><input type="text" id="qInstruct" value="Select the single best answer."></div>
+      <div class="grid-2">
+        <div class="form-group"><label>Option A</label><input type="text" id="optA"></div>
+        <div class="form-group"><label>Option B</label><input type="text" id="optB"></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Option C</label><input type="text" id="optC"></div>
+        <div class="form-group"><label>Option D</label><input type="text" id="optD"></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Correct Answer</label><select id="qCorrect"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
+        <div class="form-group"><label>Selection Limit</label><input type="text" id="qLimit" value="1"></div>
+      </div>
+      <button class="btn" onclick="submitNewQuestion()">Save Question</button>
+    </div>
+
+    <!-- LIVE LIST VIEW: MANAGE QUESTIONS -->
+    <div class="card">
+      <h2>Existing Questions Database</h2>
+      <div id="liveQuestionsContainer">Loading stored assets...</div>
+    </div>
+
+    <!-- FORM: MEMBER MANAGER -->
+    <div class="card">
+      <h2>Register Study Group Member</h2>
+      <div class="grid-2">
+        <div class="form-group"><label>Full Name</label><input type="text" id="mName"></div>
+        <div class="form-group"><label>Position</label><input type="text" id="mPosition" placeholder="Founder"></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Year</label><input type="text" id="mYear" value="2026"></div>
+        <div class="form-group"><label>Active Course</label><input type="text" id="mCourse" value="Computer Science"></div>
+      </div>
+      <div class="form-group"><label>Short Biography Story</label><textarea id="mStory" rows="2"></textarea></div>
+      <div class="form-group"><label>Avatar Reference Link</label><input type="text" id="mPicture" value="/public/default-profile.png"></div>
+      <button class="btn" style="background-color:var(--success); color:#000;" onclick="submitNewMember()">Save Profile</button>
+    </div>
+
+    <!-- LIVE LIST VIEW: MANAGE MEMBERS -->
+    <div class="card">
+      <h2>Active Group Members</h2>
+      <div id="liveMembersContainer">Loading stored members...</div>
+    </div>
+
+    <a href="/index.html" class="btn-home">Safely Exit Control Center</a>
+  </div>
+</div>
+<script>
+  let activeSessionTokenKey = '';
+
+  async function unlockDashboard() {
+    const inputVal = document.getElementById('passField').value;
+    if (!inputVal) return alert('Please input password token.');
+    
+    try {
+      const res = await fetch('/api/admin/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: inputVal, action: 'verify' })
+      });
+      const data = await res.json();
+      
+      if (res.status === 200 && data.success) {
+        activeSessionTokenKey = inputVal;
+        document.getElementById('authGate').style.display = 'none';
+        document.getElementById('adminContent').style.display = 'block';
+        refreshDashboardLists();
+      } else {
+        alert('Access Denied: Invalid Master Password.');
+      }
+    } catch (err) {
+      alert('Authentication error. Ensure your server is running.');
+    }
+  }
+
+  async function refreshDashboardLists() {
+    try {
+      const qRes = await fetch('/api/questions');
+      const questions = await qRes.json();
+      const qBox = document.getElementById('liveQuestionsContainer');
+      qBox.innerHTML = questions.length === 0 ? '<p style="color:var(--text-muted)">No items found.</p>' : '';
+      questions.forEach(q => {
+        qBox.innerHTML += `
+          <div class="list-item">
+            <strong>[${q.title}]</strong> ${q.question}
+            <div style="font-size:13px; color:var(--text-muted); margin-top:5px;">A: ${q.a} | B: ${q.b} | Correct: ${q.correct}</div>
+            <button class="btn-danger" onclick="deleteItem('delete-question', ${q.id})">Delete Item</button>
+          </div>`;
+      });
+
+      const mRes = await fetch('/api/members');
+      const members = await mRes.json();
+      const mBox = document.getElementById('liveMembersContainer');
+      mBox.innerHTML = members.length === 0 ? '<p style="color:var(--text-muted)">No members found.</p>' : '';
+      members.forEach(m => {
+        mBox.innerHTML += `
+          <div class="list-item">
+            <strong>${m.name}</strong> (${m.position})
+            <p style="font-size:13px; color:var(--text-muted);">${m.story}</p>
+            <button class="btn-danger" onclick="deleteItem('delete-member', ${m.id})">Remove Member</button>
+          </div>`;
+      });
+    } catch (err) { console.error("Error refreshing data lists:", err); }
+  }
+
+  async function executeAdminPostCall(payload) {
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: activeSessionTokenKey, ...payload })
+    });
+    const data = await res.json();
+    if (data.success) {
+      refreshDashboardLists();
+      return true;
+    }
+    alert('Operation failure or password invalid.');
+    return false;
+  }
+
+  async function deleteItem(actionName, targetId) {
+    if (confirm("Are you completely sure you want to delete this resource?")) {
+      await executeAdminPostCall({ action: actionName, id: targetId });
+    }
+  }
+
+  async function submitNewQuestion() {
+    const payload = {
+      action: 'add-question',
+      title: document.getElementById('qTitle').value,
+      question: document.getElementById('qBody').value,
+      instructions: document.getElementById('qInstruct').value,
+      a: document.getElementById('optA').value, b: document.getElementById('optB').value,
+      c: document.getElementById('optC').value, d: document.getElementById('optD').value,
+      correct: document.getElementById('qCorrect').value, limit: document.getElementById('qLimit').value
+    };
+    if (!payload.title || !payload.question) return alert('Fill title and question.');
+    if (await executeAdminPostCall(payload)) {
+      document.getElementById('qTitle').value = ''; document.getElementById('qBody').value = '';
+      document.getElementById('optA').value = ''; document.getElementById('optB').value = '';
+      document.getElementById('optC').value = ''; document.getElementById('optD').value = '';
+    }
+  }
+
+  async function submitNewMember() {
+    const payload = {
+      action: 'add-member',
+      name: document.getElementById('mName').value, position: document.getElementById('mPosition').value,
+      year: document.getElementById('mYear').value, course: document.getElementById('mCourse').value,
+      story: document.getElementById('mStory').value, picture: document.getElementById('mPicture').value
+    };
+    if (!payload.name || !payload.story) return alert('Fill member name and biography story.');
+    if (await executeAdminPostCall(payload)) {
+      document.getElementById('mName').value = ''; document.getElementById('mStory').value = '';
+    }
+  }
+</script>
+</body>
+</html>
